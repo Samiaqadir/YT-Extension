@@ -1,0 +1,14 @@
+{
+  "name": "flow-session-share-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Flow Session Share - Secure Chrome Extension & Session Delegation Gateway",
+  "scripts": {
+    "start:backend": "cd backend && npm start",
+    "dev:backend": "cd backend && npm run dev",
+    "build:backend": "cd backend && npm run build",
+    "test:backend": "cd backend && node dist/test-e2e.js",
+    "build:extension": "cd extension && npm run build",
+    "build:all": "npm run build:backend && npm run build:extension"
+  }
+}
