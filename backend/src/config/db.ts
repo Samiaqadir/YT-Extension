@@ -35,7 +35,8 @@ class DatabaseManager {
         console.log('[Database] Attempting connection to PostgreSQL...');
         const pool = new Pool({
           connectionString: dbUrl,
-          connectionTimeoutMillis: 3000,
+          connectionTimeoutMillis: 5000,
+          ssl: dbUrl.includes('localhost') ? false : { rejectUnauthorized: false },
         });
 
         const client = await pool.connect();
@@ -51,9 +52,10 @@ class DatabaseManager {
       }
     }
 
-    // SQLite Fallback - Fixed path resolution to backend/database
+    // SQLite Fallback - Auto-detect Vercel serverless environment (/tmp) vs local
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
-    const dbDir = path.resolve(currentDir, '../../database');
+    const isVercel = !!process.env.VERCEL;
+    const dbDir = isVercel ? '/tmp' : path.resolve(currentDir, '../../database');
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true });
     }

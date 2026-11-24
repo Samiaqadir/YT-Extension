@@ -100,11 +100,12 @@ async function runEndToEndTests() {
     // 10. Test Managed User Creation & Login
     console.log('[Test 10] Testing Managed User Creation and Login for Extension...');
     const newUserId = 'usr_' + Date.now();
+    const testUsername = 'admincreateduser_' + Date.now() + '@flow.com';
     const testPass = 'mysecretpass2026';
     const userPassHash = TokenService.hashPasscode(testPass);
     await db.query(`INSERT INTO managed_users (id, username, password_hash, role, status)
-     VALUES ($1, $2, $3, 'creator', 'active')`, [newUserId, 'admincreateduser@flow.com', userPassHash]);
-    const userCheck = await db.query(`SELECT * FROM managed_users WHERE username = $1`, ['admincreateduser@flow.com']);
+     VALUES ($1, $2, $3, 'creator', 'active')`, [newUserId, testUsername, userPassHash]);
+    const userCheck = await db.query(`SELECT * FROM managed_users WHERE username = $1`, [testUsername]);
     if (userCheck.rows.length === 0)
         throw new Error('User creation failed');
     const user = userCheck.rows[0];

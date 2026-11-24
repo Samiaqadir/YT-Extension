@@ -52,10 +52,39 @@ function initializeAdminSession() {
 
 initializeAdminSession();
 
+// Restores the most recently deployed active session from the database
+export async function loadLatestManagedSession(): Promise<void> {
+  try {
+    const res = await db.query(
+      `SELECT * FROM delegated_session_grants 
+       WHERE is_valid = 1 
+       ORDER BY created_at DESC LIMIT 1`
+    );
+    if (res.rows && res.rows.length > 0) {
+      const grant = res.rows[0];
+      if (grant.delegated_token) {
+        currentManagedSession.sessionToken = grant.delegated_token;
+        currentManagedSession.domain = grant.domain || 'flow.google.com';
+        currentManagedSession.grantId = grant.grant_id;
+        currentManagedSession.scope = grant.scope || 'read_write';
+        if (grant.expires_at) currentManagedSession.expiresAt = grant.expires_at;
+        if (grant.created_at) currentManagedSession.updatedAt = grant.created_at;
+        currentManagedSession.updatedBy = 'Admin Console (Restored from DB)';
+        console.log(`[Admin] Successfully restored active session for ${currentManagedSession.domain} from database.`);
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Admin] Could not restore latest session from DB:', err.message);
+  }
+}
+
 /**
  * GET /api/admin/config
  */
-router.get('/config', (req: Request, res: Response) => {
+router.get('/config', async (req: Request, res: Response) => {
+  if (!currentManagedSession.sessionToken) {
+    await loadLatestManagedSession();
+  }
   res.json({
     success: true,
     managedSession: {

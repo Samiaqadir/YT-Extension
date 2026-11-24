@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.ts" },
+    { "source": "/api", "destination": "/api/index.ts" },
+    { "source": "/studio/(.*)", "destination": "/api/index.ts" },
+    { "source": "/studio", "destination": "/api/index.ts" },
+    { "source": "/demo/(.*)", "destination": "/api/index.ts" },
+    { "source": "/demo", "destination": "/api/index.ts" },
+    { "source": "/health", "destination": "/api/index.ts" },
+    { "source": "/admin", "destination": "/admin/index.html" },
+    { "source": "/portal", "destination": "/portal/index.html" },
+    { "source": "/", "destination": "/portal/index.html" }
+  ]
+}

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Lock, User, CheckCircle2, AlertCircle, ArrowRight, LogOut, Radio, Sparkles } from 'lucide-react';
+import { Play, Lock, User, CheckCircle2, AlertCircle, ArrowRight, LogOut, Radio, Sparkles, Globe } from 'lucide-react';
+import { injectAllSessionCookies } from '../services/cookie-injector';
+import { getApiBaseUrl, setApiBaseUrl, DEFAULT_API_BASE } from '../services/config';
 
 interface AuthUser {
   id: string;
@@ -18,11 +20,15 @@ export default function App() {
   const [session, setSession] = useState<UserSession | null>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [serverUrl, setServerUrl] = useState(DEFAULT_API_BASE);
+  const [showServerConfig, setShowServerConfig] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Load existing session from chrome.storage on mount
+  // Load existing session and API server URL from chrome.storage on mount
   useEffect(() => {
+    getApiBaseUrl().then((url) => setServerUrl(url));
+
     if (typeof chrome !== 'undefined' && chrome.storage?.local) {
       chrome.storage.local.get(['flow_auth_user', 'flow_auth_session'], (result) => {
         if (result.flow_auth_user && result.flow_auth_session) {
@@ -39,7 +45,10 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:4000/api/auth/login', {
+      const activeBase = (serverUrl || DEFAULT_API_BASE).trim().replace(/\/+$/, '');
+      await setApiBaseUrl(activeBase);
+
+      const res = await fetch(`${activeBase}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -67,52 +76,51 @@ export default function App() {
         });
 
         const targetUrl = (userSession as any).targetUrl || userSession.studioUrl || 'https://flow.google.com';
+        const cookieName = (userSession as any).cookieName || 'flow_session';
 
-        // Set session cookies directly in Chrome browser jar
-        if (chrome.cookies?.set) {
-          const cookieUrl = targetUrl.startsWith('http') ? new URL(targetUrl).origin + '/' : 'https://flow.google.com/';
-          const isHttps = cookieUrl.startsWith('https:');
+        // Set session cookies using Smart Cookie Injector
+        if (chrome.runtime?.sendMessage) {
+          try {
+            await new Promise<any>((resolve) => {
+              chrome.runtime.sendMessage(
+                {
+                  type: 'INJECT_DELEGATED_SESSION',
+                  payload: {
+                    grantId: 'grant_user_' + loggedInUser.id,
+                    domain: userSession.domain || 'flow.google.com',
+                    token: userSession.token,
+                    cookieName,
+                    targetUrl,
+                    scope: (userSession as any).scope,
+                    expiresAt: (userSession as any).expiresAt,
+                  },
+                },
+                (response) => {
+                  if (chrome.runtime.lastError) {
+                    console.warn('[App] Background message notice:', chrome.runtime.lastError.message);
+                  }
+                  resolve(response);
+                }
+              );
+            });
+          } catch (bgErr) {
+            console.warn('[App] Background worker call failed, attempting direct injection:', bgErr);
+          }
+        } else if (typeof chrome.cookies !== 'undefined') {
+          // Direct fallback if runtime messaging is unavailable
+          await injectAllSessionCookies(
+            userSession.token,
+            targetUrl,
+            cookieName,
+            userSession.domain || 'flow.google.com',
+            (userSession as any).expiresAt
+          );
 
-          await new Promise((resolve) => {
-            chrome.cookies.set(
-              {
-                url: cookieUrl,
-                name: (userSession as any).cookieName || 'flow_session',
-                value: userSession.token,
-                path: '/',
-                secure: isHttps,
-              },
-              resolve
-            );
-          });
+          await new Promise((resolve) => setTimeout(resolve, 200));
 
-          await new Promise((resolve) => {
-            chrome.cookies.set(
-              {
-                url: cookieUrl,
-                name: 'flow_delegated_session',
-                value: userSession.token,
-                path: '/',
-                secure: isHttps,
-              },
-              resolve
-            );
-          });
-
-          // Open target account URL with cookies already applied!
-          if (chrome.tabs?.create) {
+          if (typeof chrome.tabs !== 'undefined') {
             chrome.tabs.create({ url: targetUrl });
           }
-        } else {
-          chrome.runtime.sendMessage({
-            type: 'INJECT_DELEGATED_SESSION',
-            payload: {
-              grantId: 'grant_user_' + loggedInUser.id,
-              domain: userSession.domain,
-              token: userSession.token,
-              targetUrl,
-            },
-          });
         }
       } else {
         // Fallback for non-extension browser testing
@@ -128,24 +136,35 @@ export default function App() {
 
   const handleOpenStudio = async () => {
     const url = (session as any)?.targetUrl || session?.studioUrl || 'https://flow.google.com';
+    const cookieName = (session as any)?.cookieName || 'flow_session';
+
     if (typeof chrome !== 'undefined') {
-      if (chrome.cookies?.set && session?.token) {
-        const cookieUrl = url.startsWith('http') ? new URL(url).origin + '/' : 'https://flow.google.com/';
-        const isHttps = cookieUrl.startsWith('https:');
-        await new Promise((resolve) => {
-          chrome.cookies.set(
-            {
-              url: cookieUrl,
-              name: (session as any).cookieName || 'flow_session',
-              value: session.token,
-              path: '/',
-              secure: isHttps,
-            },
-            resolve
-          );
+      if (chrome.runtime?.sendMessage && session?.token) {
+        chrome.runtime.sendMessage({
+          type: 'INJECT_DELEGATED_SESSION',
+          payload: {
+            grantId: 'studio_launch_' + Date.now(),
+            domain: session.domain || 'flow.google.com',
+            token: session.token,
+            cookieName,
+            targetUrl: url,
+            scope: (session as any)?.scope,
+            expiresAt: (session as any)?.expiresAt,
+          },
         });
+        return;
       }
-      if (chrome.tabs?.create) {
+      if (typeof chrome.cookies !== 'undefined' && session?.token) {
+        await injectAllSessionCookies(
+          session.token,
+          url,
+          cookieName,
+          session.domain || 'flow.google.com',
+          (session as any)?.expiresAt
+        );
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+      if (typeof chrome.tabs !== 'undefined') {
         chrome.tabs.create({ url });
         return;
       }
@@ -258,12 +277,42 @@ export default function App() {
               </button>
             </form>
 
-            <div className="pt-3 border-t border-slate-900 text-center">
+            <div className="pt-3 border-t border-slate-900 text-center space-y-2">
+              <div className="flex items-center justify-between text-[10px] text-slate-500">
+                <span>Gateway Server:</span>
+                <button
+                  type="button"
+                  onClick={() => setShowServerConfig(!showServerConfig)}
+                  className="text-purple-400 hover:text-purple-300 font-medium underline flex items-center space-x-1"
+                >
+                  <Globe className="w-3 h-3 inline mr-0.5" />
+                  <span>{serverUrl.replace(/^https?:\/\//, '')} (Change)</span>
+                </button>
+              </div>
+
+              {showServerConfig && (
+                <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-left space-y-1.5 animate-fade-in">
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase">
+                    Backend / Vercel Gateway URL:
+                  </label>
+                  <input
+                    type="text"
+                    value={serverUrl}
+                    onChange={(e) => setServerUrl(e.target.value)}
+                    placeholder="https://your-app.vercel.app"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-purple-500"
+                  />
+                  <p className="text-[9px] text-slate-500">
+                    Use <code className="text-purple-300">http://localhost:4000</code> or your deployed Vercel domain.
+                  </p>
+                </div>
+              )}
+
               <p className="text-[10px] text-slate-400">
                 Enter your credentials created by your Administrator.
               </p>
               <p className="text-[10px] text-slate-600 mt-0.5">
-                Admin Panel: <a href="http://localhost:4000/admin" target="_blank" className="text-purple-400 hover:underline">localhost:4000/admin</a>
+                Admin Panel: <a href={`${serverUrl}/admin`} target="_blank" className="text-purple-400 hover:underline">{serverUrl.replace(/^https?:\/\//, '')}/admin</a>
               </p>
             </div>
           </div>

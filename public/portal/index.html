@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow Session Share - Secure Recipient Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: { 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .glass {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800/80 glass sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+        </div>
+        <div>
+          <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Flow Session Share</span>
+          <span class="text-xs px-2 py-0.5 ml-2 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">Recipient Gateway</span>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4 text-xs text-slate-400">
+        <span class="flex items-center">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-ping"></span>
+          End-to-End Encrypted
+        </span>
+        <a href="/demo/app" class="hover:text-blue-400 transition" target="_blank">Demo Target App ↗</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-xl w-full mx-auto p-6 flex flex-col justify-center">
+
+    <!-- Card -->
+    <div id="mainCard" class="glass rounded-2xl p-8 shadow-2xl relative overflow-hidden border border-slate-800">
+      <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- State: Loading / Checking Token -->
+      <div id="stateLoading" class="text-center py-10">
+        <div class="inline-block animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
+        <h3 class="text-lg font-medium text-slate-200">Verifying Session Invitation...</h3>
+        <p class="text-xs text-slate-500 mt-1">Connecting to authenticated delegation gateway</p>
+      </div>
+
+      <!-- State: Manual Token Input (when opened without token hash) -->
+      <div id="stateInput" class="hidden">
+        <div class="text-center mb-6">
+          <div class="w-14 h-14 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+            </svg>
+          </div>
+          <h2 class="text-xl font-bold text-white">Receive Shared Session</h2>
+          <p class="text-xs text-slate-400 mt-1">Enter your single-use invitation code or token to access the authorized website session.</p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Invitation Token or URL</label>
+            <input type="text" id="manualTokenInput" placeholder="e.g. 5xG... or full invite link" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition text-slate-200 font-mono">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Decryption Key (Optional if included in link)</label>
+            <input type="password" id="manualKeyInput" placeholder="Client decryption key" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition text-slate-200 font-mono">
+          </div>
+
+          <button id="btnVerifyManual" onclick="handleManualVerify()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-600/20 transition duration-200">
+            Verify Invitation
+          </button>
+        </div>
+      </div>
+
+      <!-- State: Invitation Ready to Claim -->
+      <div id="stateReady" class="hidden">
+        <div class="border-b border-slate-800 pb-5 mb-5 flex items-center justify-between">
+          <div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400 flex items-center">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>
+              Invitation Verified
+            </span>
+            <h2 class="text-xl font-bold text-white mt-1">Authorized Session Ready</h2>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-500">Expires in</span>
+            <div id="countdown" class="text-sm font-semibold text-blue-400">--:--</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/90 rounded-xl p-4 border border-slate-800 space-y-3 mb-6 text-sm">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-xs">Target Domain:</span>
+            <span id="readyDomain" class="font-mono font-medium text-blue-300 bg-blue-950/60 px-2.5 py-0.5 rounded border border-blue-800/40">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-xs">Shared By:</span>
+            <span id="readyOwner" class="font-medium text-slate-200">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-xs">Delegated Scope:</span>
+            <span id="readyScope" class="font-semibold text-xs uppercase px-2 py-0.5 bg-slate-800 rounded text-slate-300">--</span>
+          </div>
+        </div>
+
+        <!-- Optional Passcode Input -->
+        <div id="passcodeContainer" class="hidden mb-6">
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            Recipient Passcode Required
+          </label>
+          <input type="password" id="recipientPasscodeInput" placeholder="Enter recipient passcode set by owner" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition text-slate-200">
+        </div>
+
+        <!-- Security Notice -->
+        <div class="bg-blue-950/30 border border-blue-500/20 rounded-xl p-3 mb-6 flex items-start space-x-3 text-xs text-blue-200">
+          <svg class="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <p>
+            This session is cryptographically isolated and delegated. Passwords and master credentials remain protected. The owner may revoke access at any time.
+          </p>
+        </div>
+
+        <button id="btnClaim" onclick="handleClaimSession()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition duration-200 flex items-center justify-center space-x-2">
+          <span>Connect to Authorized Session</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- State: Success -->
+      <div id="stateSuccess" class="hidden text-center py-6">
+        <div class="w-16 h-16 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-2">Session Connected!</h2>
+        <p class="text-xs text-slate-400 mb-6">
+          Your delegated session token has been securely issued and verified by the Flow Gateway.
+        </p>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6 text-left space-y-2 text-xs">
+          <div class="text-slate-400">Delegated Session Token:</div>
+          <div id="tokenDisplay" class="font-mono text-emerald-400 break-all bg-slate-950 p-2.5 rounded border border-slate-800 text-[11px]">--</div>
+        </div>
+
+        <a id="btnLaunchTarget" href="#" target="_blank" class="w-full inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-600/20 transition">
+          <span>Open Target Website</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+          </svg>
+        </a>
+      </div>
+
+      <!-- State: Error / Revoked / Expired -->
+      <div id="stateError" class="hidden text-center py-6">
+        <div class="w-16 h-16 bg-red-500/10 text-red-400 border border-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </div>
+        <h2 id="errorTitle" class="text-2xl font-bold text-red-400 mb-2">Invitation Unavailable</h2>
+        <p id="errorMessage" class="text-xs text-slate-400 mb-6">This invitation is either invalid, revoked, or has expired.</p>
+        <button onclick="showState('input')" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition">
+          Try Another Invitation
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Security Guarantee Footer -->
+    <div class="mt-8 text-center text-xs text-slate-500 space-y-1">
+      <p>🛡️ Zero-Knowledge Delegation Architecture</p>
+      <p>No master passwords or HttpOnly session cookies are transmitted across users.</p>
+    </div>
+  </main>
+
+  <script>
+    let currentToken = null;
+    let currentKey = null;
+    let invitationData = null;
+    let countdownInterval = null;
+
+    function showState(state) {
+      ['Loading', 'Input', 'Ready', 'Success', 'Error'].forEach(s => {
+        const el = document.getElementById('state' + s);
+        if (el) el.classList.add('hidden');
+      });
+      document.getElementById('state' + state.charAt(0).toUpperCase() + state.slice(1)).classList.remove('hidden');
+    }
+
+    // Parse URL hash for #token=...&key=...
+    function parseHash() {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      return {
+        token: params.get('token'),
+        key: params.get('key')
+      };
+    }
+
+    async function loadInvitation(token, key) {
+      showState('loading');
+      currentToken = token;
+      currentKey = key;
+
+      try {
+        const res = await fetch('/api/sessions/invitation/' + encodeURIComponent(token));
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.error || 'Failed to verify invitation.');
+          return;
+        }
+
+        invitationData = data;
+        displayReadyState(data);
+      } catch (err) {
+        showError('Network error connecting to Flow Gateway: ' + err.message);
+      }
+    }
+
+    function displayReadyState(data) {
+      document.getElementById('readyDomain').textContent = data.domain;
+      document.getElementById('readyOwner').textContent = data.ownerLabel || 'Authorized User';
+      document.getElementById('readyScope').textContent = data.delegatedScope || 'Read-Write';
+
+      if (data.requiresPasscode) {
+        document.getElementById('passcodeContainer').classList.remove('hidden');
+      } else {
+        document.getElementById('passcodeContainer').classList.add('hidden');
+      }
+
+      startCountdown(new Date(data.expiresAt));
+      showState('ready');
+    }
+
+    function startCountdown(expiresAt) {
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      function update() {
+        const diff = expiresAt.getTime() - Date.now();
+        if (diff <= 0) {
+          clearInterval(countdownInterval);
+          document.getElementById('countdown').textContent = 'EXPIRED';
+          showError('This invitation has just expired.');
+          return;
+        }
+        const mins = Math.floor(diff / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        document.getElementById('countdown').textContent = 
+          `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+
+      update();
+      countdownInterval = setInterval(update, 1000);
+    }
+
+    async function handleClaimSession() {
+      const btn = document.getElementById('btnClaim');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="inline-block animate-spin mr-2">⏳</span> Establishing Session...`;
+
+      const passcode = document.getElementById('recipientPasscodeInput')?.value?.trim();
+
+      try {
+        const res = await fetch('/api/sessions/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: currentToken,
+            recipientId: 'recipient_web_user',
+            passcode: passcode || undefined
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          btn.disabled = false;
+          btn.innerHTML = `<span>Connect to Authorized Session</span>`;
+          alert(data.error || 'Failed to claim session.');
+          return;
+        }
+
+        // Show Success
+        document.getElementById('tokenDisplay').textContent = data.delegatedToken;
+        
+        // Link to target app or demo
+        let targetUrl = data.domain.startsWith('http') ? data.domain : `http://${data.domain}`;
+        if (data.domain.includes('localhost:4000') || data.domain.includes('flowshare') || data.domain.includes('demo')) {
+          targetUrl = `/demo/app?token=${encodeURIComponent(data.delegatedToken)}`;
+        } else {
+          targetUrl = `${targetUrl}?flow_grant=${encodeURIComponent(data.delegatedToken)}`;
+        }
+
+        document.getElementById('btnLaunchTarget').href = targetUrl;
+        showState('success');
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = `<span>Connect to Authorized Session</span>`;
+        alert('Claim failed: ' + err.message);
+      }
+    }
+
+    function handleManualVerify() {
+      const val = document.getElementById('manualTokenInput').value.trim();
+      const key = document.getElementById('manualKeyInput').value.trim();
+      if (!val) {
+        alert('Please enter an invitation token or link.');
+        return;
+      }
+
+      let token = val;
+      if (val.includes('#token=')) {
+        const urlPart = val.substring(val.indexOf('#') + 1);
+        const params = new URLSearchParams(urlPart);
+        token = params.get('token') || val;
+      }
+
+      loadInvitation(token, key);
+    }
+
+    function showError(msg) {
+      document.getElementById('errorMessage').textContent = msg;
+      showState('error');
+    }
+
+    // Auto-detect on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const { token, key } = parseHash();
+      if (token) {
+        loadInvitation(token, key);
+      } else {
+        showState('input');
+      }
+    });
+  </script>
+</body>
+</html>

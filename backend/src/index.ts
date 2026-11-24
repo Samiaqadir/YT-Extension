@@ -2,12 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { db } from './config/db.js';
 import sessionRoutes from './routes/session.routes.js';
 import gatewayRoutes from './routes/gateway.routes.js';
 import demoRoutes from './routes/demo.routes.js';
-import adminRoutes from './routes/admin.routes.js';
+import adminRoutes, { loadLatestManagedSession } from './routes/admin.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import studioRoutes from './routes/studio.routes.js';
 import { notificationService } from './services/notification.service.js';
@@ -16,6 +17,18 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+// Lazy DB and session initialization for serverless & container environments
+let initPromise: Promise<void> | null = null;
+export async function ensureInitialized(): Promise<void> {
+  if (!initPromise) {
+    initPromise = (async () => {
+      await db.init();
+      await loadLatestManagedSession();
+    })();
+  }
+  return initPromise;
+}
 
 // Middleware
 app.use(cors({
@@ -26,19 +39,41 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Ensure database and state are initialized before handling requests
+app.use(async (req, res, next) => {
+  try {
+    await ensureInitialized();
+    next();
+  } catch (err) {
+    console.error('[Initialization Error]:', err);
+    next(err);
+  }
+});
+
 // Serve static portal, admin, and extension preview assets
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const portalDir = path.resolve(currentDir, '../../demo-portal');
-const adminDir = path.resolve(currentDir, '../../admin-panel');
+const portalDir = fs.existsSync(path.resolve(currentDir, '../../demo-portal'))
+  ? path.resolve(currentDir, '../../demo-portal')
+  : path.resolve(currentDir, '../../public/portal');
+const adminDir = fs.existsSync(path.resolve(currentDir, '../../admin-panel'))
+  ? path.resolve(currentDir, '../../admin-panel')
+  : path.resolve(currentDir, '../../public/admin');
 const extensionDir = path.resolve(currentDir, '../../extension/dist');
 
 app.use('/portal', express.static(portalDir));
 app.use('/admin', express.static(adminDir));
-app.use('/extension', express.static(extensionDir));
+if (fs.existsSync(extensionDir)) {
+  app.use('/extension', express.static(extensionDir));
+}
 
 // Quick shortcut to extension popup preview
 app.get('/popup', (req, res) => {
-  res.sendFile(path.join(extensionDir, 'src/popup/index.html'));
+  const popupPath = path.join(extensionDir, 'src/popup/index.html');
+  if (fs.existsSync(popupPath)) {
+    res.sendFile(popupPath);
+  } else {
+    res.redirect('/portal');
+  }
 });
 
 // SSE Real-Time Notifications
@@ -78,10 +113,10 @@ app.get('/', (req, res) => {
   res.redirect('/portal');
 });
 
-// Start Server
+// Start Server for standalone execution
 async function startServer() {
   try {
-    await db.init();
+    await ensureInitialized();
     app.listen(PORT, () => {
       console.log(`=======================================================`);
       console.log(`🚀 Flow Session Share Backend & Gateway running at:`);
@@ -99,4 +134,10 @@ async function startServer() {
   }
 }
 
-startServer();
+// Only launch standalone listener if not running inside Vercel serverless
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
+export { app };

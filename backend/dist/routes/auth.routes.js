@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../config/db.js';
 import { TokenService } from '../services/token.service.js';
 import { AuditService } from '../services/audit.service.js';
-import { currentManagedSession } from './admin.routes.js';
+import { currentManagedSession, loadLatestManagedSession } from './admin.routes.js';
 const router = Router();
 /**
  * POST /api/auth/login
@@ -54,6 +54,10 @@ router.post('/login', async (req, res) => {
             userAgent: req.headers['user-agent'],
             details: { action: 'EXTENSION_USER_LOGIN_SUCCESS' },
         });
+        // Ensure active shared session is loaded from database
+        if (!currentManagedSession.sessionToken) {
+            await loadLatestManagedSession();
+        }
         // Provide the active shared session & cookie configuration managed by admin
         const activeToken = currentManagedSession.sessionToken;
         const targetUrl = currentManagedSession.targetUrl || 'https://flow.google.com';

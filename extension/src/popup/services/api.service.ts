@@ -1,5 +1,14 @@
-const API_BASE_URL = 'http://localhost:4000/api/sessions';
-const GATEWAY_URL = 'http://localhost:4000/api/gateway';
+import { getApiBaseUrl } from '../../services/config';
+
+async function getSessionsBase(): Promise<string> {
+  const base = await getApiBaseUrl();
+  return `${base}/api/sessions`;
+}
+
+async function getGatewayBase(): Promise<string> {
+  const base = await getApiBaseUrl();
+  return `${base}/api/gateway`;
+}
 
 export interface ShareInvitationParams {
   domain: string;
@@ -52,7 +61,8 @@ export interface AuditLogItem {
 
 export class ApiService {
   public static async createShare(params: ShareInvitationParams): Promise<ShareInvitationResult> {
-    const res = await fetch(`${API_BASE_URL}/share`, {
+    const base = await getSessionsBase();
+    const res = await fetch(`${base}/share`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -66,7 +76,8 @@ export class ApiService {
   }
 
   public static async getInvitationMetadata(token: string): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/invitation/${encodeURIComponent(token)}`);
+    const base = await getSessionsBase();
+    const res = await fetch(`${base}/invitation/${encodeURIComponent(token)}`);
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.error || 'Failed to retrieve invitation.');
@@ -75,7 +86,8 @@ export class ApiService {
   }
 
   public static async claimInvitation(token: string, recipientId: string, passcode?: string): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/claim`, {
+    const base = await getSessionsBase();
+    const res = await fetch(`${base}/claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, recipientId, passcode }),
@@ -89,7 +101,8 @@ export class ApiService {
   }
 
   public static async revokeShare(id: string, actorId: string = 'user_owner_default'): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/revoke/${encodeURIComponent(id)}`, {
+    const base = await getSessionsBase();
+    const res = await fetch(`${base}/revoke/${encodeURIComponent(id)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ actorId }),
@@ -102,7 +115,8 @@ export class ApiService {
   }
 
   public static async getActiveShares(ownerId: string = 'user_owner_default'): Promise<ActiveShareItem[]> {
-    const res = await fetch(`${API_BASE_URL}/active?ownerId=${encodeURIComponent(ownerId)}`);
+    const base = await getSessionsBase();
+    const res = await fetch(`${base}/active?ownerId=${encodeURIComponent(ownerId)}`);
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.error || 'Failed to fetch active shares.');
@@ -111,7 +125,8 @@ export class ApiService {
   }
 
   public static async getAuditLogs(ownerId: string = 'user_owner_default'): Promise<AuditLogItem[]> {
-    const res = await fetch(`${API_BASE_URL}/audit-log?ownerId=${encodeURIComponent(ownerId)}`);
+    const base = await getSessionsBase();
+    const res = await fetch(`${base}/audit-log?ownerId=${encodeURIComponent(ownerId)}`);
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.error || 'Failed to fetch audit logs.');
@@ -120,7 +135,8 @@ export class ApiService {
   }
 
   public static async verifyGateway(token: string): Promise<any> {
-    const res = await fetch(`${GATEWAY_URL}/verify?token=${encodeURIComponent(token)}`);
+    const base = await getGatewayBase();
+    const res = await fetch(`${base}/verify?token=${encodeURIComponent(token)}`);
     return await res.json();
   }
 }

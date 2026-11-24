@@ -7,7 +7,7 @@ import { db } from './config/db.js';
 import sessionRoutes from './routes/session.routes.js';
 import gatewayRoutes from './routes/gateway.routes.js';
 import demoRoutes from './routes/demo.routes.js';
-import adminRoutes from './routes/admin.routes.js';
+import adminRoutes, { loadLatestManagedSession } from './routes/admin.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import studioRoutes from './routes/studio.routes.js';
 import { notificationService } from './services/notification.service.js';
@@ -69,6 +69,7 @@ app.get('/', (req, res) => {
 async function startServer() {
     try {
         await db.init();
+        await loadLatestManagedSession();
         app.listen(PORT, () => {
             console.log(`=======================================================`);
             console.log(`🚀 Flow Session Share Backend & Gateway running at:`);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { KeyRound, ShieldCheck, Check, AlertCircle, ExternalLink, ArrowRight } from 'lucide-react';
 import { ApiService } from '../services/api.service';
+import { getApiBaseUrl } from '../../services/config';
 
 interface ReceiveScreenProps {
   onSessionClaimed?: (domain: string) => void;
@@ -78,6 +79,8 @@ export const ReceiveScreen: React.FC<ReceiveScreenProps> = ({ onSessionClaimed }
             token: result.delegatedToken,
             scope: result.scope,
             expiresAt: result.expiresAt,
+            targetUrl: (result as any).targetUrl || (result.domain.startsWith('http') ? result.domain : `https://${result.domain}`),
+            cookieName: (result as any).cookieName || 'flow_session',
           },
         });
       }
@@ -95,7 +98,8 @@ export const ReceiveScreen: React.FC<ReceiveScreenProps> = ({ onSessionClaimed }
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch('http://localhost:4000/api/admin/config');
+      const apiBase = await getApiBaseUrl();
+      const res = await fetch(`${apiBase}/api/admin/config`);
       const data = await res.json();
       if (!data.managedSession?.fullToken) {
         throw new Error('No active centralized session configured by admin yet.');
@@ -112,6 +116,8 @@ export const ReceiveScreen: React.FC<ReceiveScreenProps> = ({ onSessionClaimed }
             token,
             scope: data.managedSession.scope,
             expiresAt: data.managedSession.expiresAt,
+            targetUrl: data.managedSession.targetUrl || 'https://flow.google.com',
+            cookieName: data.managedSession.cookieName || 'flow_session',
           },
         });
       }
