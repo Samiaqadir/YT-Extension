@@ -1,4 +1,4 @@
-export const DEFAULT_API_BASE = 'http://localhost:4000';
+export const DEFAULT_API_BASE = 'https://yt-extension-vercel-admin.vercel.app';
 
 export async function getApiBaseUrl(): Promise<string> {
   if (typeof chrome !== 'undefined' && chrome.storage?.local) {

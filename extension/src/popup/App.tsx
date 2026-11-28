@@ -303,7 +303,7 @@ export default function App() {
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-purple-500"
                   />
                   <p className="text-[9px] text-slate-500">
-                    Use <code className="text-purple-300">http://localhost:4000</code> or your deployed Vercel domain.
+                    Default: <code className="text-purple-300">https://yt-extension-vercel-admin.vercel.app</code>
                   </p>
                 </div>
               )}
