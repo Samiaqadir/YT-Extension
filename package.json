@@ -5,7 +5,9 @@
   "type": "module",
   "description": "Flow Session Share - Secure Chrome Extension & Session Delegation Gateway",
   "scripts": {
-    "build": "node scripts/sync-public.js",
+    "start": "cd backend && npm start",
+    "build": "cd backend && npm run build",
+    "package:extension": "tar.exe -a -cf extension/flow-session-share.zip -C extension/dist .",
     "sync": "node scripts/sync-public.js",
     "start:backend": "cd backend && npm start",
     "dev:backend": "cd backend && npm run dev",
