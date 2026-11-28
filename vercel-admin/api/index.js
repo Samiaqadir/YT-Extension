@@ -14,8 +14,26 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Safe body parsing for Vercel Serverless
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    return next();
+  }
+  express.json({ limit: '10mb' })(req, res, (err) => {
+    if (err) return next();
+    next();
+  });
+});
+
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    return next();
+  }
+  express.urlencoded({ extended: true })(req, res, (err) => {
+    if (err) return next();
+    next();
+  });
+});
 
 // --- In-Memory State for Serverless Execution ---
 let managedSession = {
