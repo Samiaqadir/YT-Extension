@@ -1,0 +1,17 @@
+{
+  "name": "flow-session-admin-vercel",
+  "version": "1.0.0",
+  "description": "Flow Session Share - Admin Control Panel Serverless Gateway for Vercel",
+  "main": "api/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "node api/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^11.0.3"
+  }
+}
